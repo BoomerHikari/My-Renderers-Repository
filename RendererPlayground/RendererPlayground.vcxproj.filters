@@ -13,6 +13,36 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Shader Files">
+      <UniqueIdentifier>{43e98fa4-0989-4237-9616-8a8b41ee0d70}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shader Files\HLSL">
+      <UniqueIdentifier>{dd472959-6e00-4d1c-bad9-b70990c39599}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Renderer Components">
+      <UniqueIdentifier>{414935bb-a361-4b3f-8775-08dce216f7d3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Renderer Components\DirectX11 Renderer">
+      <UniqueIdentifier>{528870e4-640b-4ba4-94d4-b2eab69327a9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Renderer Components\DirectX12 Renderer">
+      <UniqueIdentifier>{3128a43e-c415-4250-a960-8315e30ea8e9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Renderer Components\Vulkan Renderer">
+      <UniqueIdentifier>{4e589d6f-15de-4fe9-a8dc-ded54af8bda2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Renderer Components">
+      <UniqueIdentifier>{ee716695-9773-415a-831c-b1cdb177b060}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Renderer Components\Vulkan Renderer">
+      <UniqueIdentifier>{de4a40aa-a72d-4639-b795-d8307d9d24a0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Renderer Components\DirectX12 Renderer">
+      <UniqueIdentifier>{0b6d6b7d-388e-4d3b-aefc-0a4184518c4a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Renderer Components\DirectX11 Renderer">
+      <UniqueIdentifier>{af53bbbf-43bc-4175-a5e3-6d43fd8c4817}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <Text Include="ReadMe.txt" />
@@ -30,6 +60,12 @@
     <ClInclude Include="RendererPlayground.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Graphics_DX11.h">
+      <Filter>Header Files\Renderer Components\DirectX11 Renderer</Filter>
+    </ClInclude>
+    <ClInclude Include="BufferStructures.h">
+      <Filter>Header Files\Renderer Components</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -37,6 +73,9 @@
     </ClCompile>
     <ClCompile Include="RendererPlayground.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics_DX11.cpp">
+      <Filter>Source Files\Renderer Components\DirectX11 Renderer</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
