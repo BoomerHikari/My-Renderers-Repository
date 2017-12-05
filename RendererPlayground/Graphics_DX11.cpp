@@ -1,17 +1,74 @@
 #include "Graphics_DX11.h"
-
-//Macro for releasing DirectX Com Pointers
-#define SafeRelease(x) if (x != nullptr) {x->Release(); x = nullptr;}
+#include <fstream>
+#include <vector>
 
 //DXGI includes
 #include <dxgi1_2.h>
 #pragma comment(lib, "Dxgi.lib")
-
+//D3Dcompiler include for shader reflection
+#include <D3Dcompiler.h>
+#pragma comment(lib, "D3Dcompiler.lib")
 #pragma once
+
+
+
+using Microsoft::WRL::ComPtr;
+
+#pragma region PipelineState
+
+class PipelineState
+{
+	//Buffers & Textures
+	ID3D11RenderTargetView*	currentRTV;
+	ID3D11DepthStencilView* currentDSV;
+	ID3D11Buffer*			currentVertexBuffer;
+	ID3D11Buffer*			currentIndexBuffer;
+	//Shaders
+	ID3D11VertexShader*		currentVertexShader;
+	ID3D11HullShader*		currentHullShader;
+	ID3D11DomainShader*		currentDomainShader;
+	ID3D11GeometryShader*	currentGeometryShader;
+	ID3D11PixelShader*		currentPixelShader;
+	//Other
+	D3D11_VIEWPORT*			currentViewport;
+	ID3D11DeviceContext*	immediateContextReference;
+
+public:
+	void SetImmediateContext(ID3D11DeviceContext* context);
+	void SetRenderTarget(ID3D11RenderTargetView* rtv, ID3D11DepthStencilView* dsv);
+	void SetVertexShader(ID3D11VertexShader* Vshader);
+	void SetHullShader(ID3D11HullShader* Hshader);
+	void SetDomainShader(ID3D11DomainShader* Dshader);
+	void SetGeometryShader(ID3D11GeometryShader* Gshader);
+	void SetPixelShader(ID3D11PixelShader* Pshader);
+
+}currentPipeline;
+
+
+void PipelineState::SetImmediateContext(ID3D11DeviceContext* context)
+{
+	immediateContextReference = context;
+}
+
+void PipelineState::SetRenderTarget(ID3D11RenderTargetView* rtv, ID3D11DepthStencilView* dsv)
+{
+	if (currentRTV != rtv || currentDSV != dsv)
+	{
+		currentRTV = rtv;
+		currentDSV = dsv;
+
+		immediateContextReference->OMSetRenderTargets(1, &rtv, dsv);
+	}
+}
+
+#pragma endregion
+
+
 
 Graphics_DX11::Graphics_DX11() : device(nullptr), immediateContext(nullptr), primaryRenderTargetTexture(nullptr), primaryTextureRTV(nullptr)
 {
 	ZeroMemory(&fullScreenViewport, sizeof(D3D11_VIEWPORT));
+	ZeroMemory(&currentPipeline, sizeof(currentPipeline));
 	supportedFeatureLevel = D3D_FEATURE_LEVEL_10_0;
 }
 
@@ -20,13 +77,160 @@ Graphics_DX11::~Graphics_DX11()
 	Release();
 }
 
+unsigned int Graphics_DX11::GetFileBinary(char * file, char ** fileData)
+{
+	unsigned int Flen = 0;
+	std::ifstream reader;
+	reader.open(file, std::ios_base::binary);
+
+	if (reader.is_open())
+	{
+		//Read the binary file into a char array
+		reader.seekg(0, reader.end);
+		Flen = reader.tellg();
+		if (Flen > 0)
+		{
+			*fileData = new char[Flen];
+			reader.seekg(0, reader.beg);
+			reader.read(*fileData, Flen);
+		}
+		reader.close();
+	}
+	
+	return Flen;
+}
+
+unsigned int Graphics_DX11::LoadVertexShader(char * file)
+{
+	unsigned int VSindex = 0;
+	char* VSbytecode = nullptr;
+
+	//Read the shader file into a char array
+	unsigned int BClen = GetFileBinary(file, &VSbytecode);
+
+	if (BClen > 0)
+	{
+		//Our ultimate goals are to load these
+		ComPtr<ID3D11InputLayout> inputLayout = nullptr;
+		ComPtr<ID3D11VertexShader> vertexShader = nullptr;
+
+		//Start building the input layout with shader reflection
+		Microsoft::WRL::ComPtr<ID3D11ShaderReflection> VSreflection = nullptr;
+		D3D11_SHADER_DESC VSdesc;
+		//Reflect the shader
+		D3D11_SIGNATURE_PARAMETER_DESC SPdesc;
+		D3D11_INPUT_ELEMENT_DESC* inputLayoutDesc = nullptr;
+		if (D3DReflect(VSbytecode, BClen, IID_ID3D11ShaderReflection, (void**)(&VSreflection)) == S_OK);
+		{
+			//Get the shader's description
+			VSreflection->GetDesc(&VSdesc);
+
+			//It was about this time that I realised this was nearly pointless, but I had already started.
+
+			if (VSdesc.InputParameters > 0)
+			{
+				inputLayoutDesc = new D3D11_INPUT_ELEMENT_DESC[VSdesc.InputParameters];
+			}
+			for (UINT i = 0; i < VSdesc.InputParameters; ++i)
+			{
+				D3D11_SHADER_INPUT_BIND_DESC SIBdesc;
+				VSreflection->GetResourceBindingDesc(i, &SIBdesc);
+				VSreflection->GetInputParameterDesc(i, &SPdesc);
+				inputLayoutDesc[i].SemanticName = SPdesc.SemanticName;
+				inputLayoutDesc[i].SemanticIndex = SPdesc.SemanticIndex;
+				inputLayoutDesc[i].InputSlot = 0;
+				inputLayoutDesc[i].InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA;
+				inputLayoutDesc[i].InstanceDataStepRate = 0;
+				inputLayoutDesc[i].AlignedByteOffset = D3D11_APPEND_ALIGNED_ELEMENT;
+
+				DXGI_FORMAT ILformat;
+
+				switch (SPdesc.ComponentType)
+				{
+					case (D3D_REGISTER_COMPONENT_FLOAT32): {
+						if (SPdesc.Mask == 1)
+						{
+							ILformat = DXGI_FORMAT_R32_FLOAT;
+						}
+						else if (SPdesc.Mask < 4)
+						{
+							ILformat = DXGI_FORMAT_R32G32_FLOAT;
+						}
+						else if (SPdesc.Mask < 8)
+						{
+							ILformat = DXGI_FORMAT_R32G32B32_FLOAT;
+						}
+						else
+						{
+							ILformat = DXGI_FORMAT_R32G32B32A32_FLOAT;
+						}
+						break;
+					}
+					case (D3D_REGISTER_COMPONENT_SINT32): {
+						if (SPdesc.Mask == 1)
+						{
+							ILformat = DXGI_FORMAT_R32_SINT;
+						}
+						else if (SPdesc.Mask < 4)
+						{
+							ILformat = DXGI_FORMAT_R32G32_SINT;
+						}
+						else if (SPdesc.Mask < 8)
+						{
+							ILformat = DXGI_FORMAT_R32G32B32_SINT;
+						}
+						else
+						{
+							ILformat = DXGI_FORMAT_R32G32B32A32_SINT;
+						}
+						break;
+					}
+					case (D3D_REGISTER_COMPONENT_UINT32): {
+						if (SPdesc.Mask == 1)
+						{
+							ILformat = DXGI_FORMAT_R32_UINT;
+						}
+						else if (SPdesc.Mask < 4)
+						{
+							ILformat = DXGI_FORMAT_R32G32_UINT;
+						}
+						else if (SPdesc.Mask < 8)
+						{
+							ILformat = DXGI_FORMAT_R32G32B32_UINT;
+						}
+						else
+						{
+							ILformat = DXGI_FORMAT_R32G32B32A32_UINT;
+						}
+						break;
+				}
+					default: {
+						ILformat = DXGI_FORMAT_R32G32B32A32_FLOAT;
+					}
+			}
+				inputLayoutDesc[i].Format = ILformat;
+		}
+
+			
+	}
+		if (inputLayoutDesc != nullptr)
+		{
+			device->CreateInputLayout(inputLayoutDesc, VSdesc.InputParameters, VSbytecode, BClen, &inputLayout);
+			device->CreateVertexShader(VSbytecode, BClen, NULL, &vertexShader);
+
+			//These need to be stored somewhere.
+		}
+
+
+		delete[] inputLayoutDesc;
+}
+
+	delete VSbytecode;
+	return VSindex;
+}
+
 void Graphics_DX11::Release()
 {
-	SafeRelease(primaryTextureRTV);
-	SafeRelease(primaryRenderTargetTexture);
-	SafeRelease(swapChain);
-	SafeRelease(immediateContext);
-	SafeRelease(device);
 }
 
 void Graphics_DX11::Init(HWND hwnd)
@@ -45,8 +249,8 @@ void Graphics_DX11::Init(HWND hwnd)
 	if (hwnd != nullptr)
 	{
 		//This factory will be used to build the swap chain.
-		IDXGIFactory* factory;
-		result = CreateDXGIFactory(__uuidof(factory), (void**)(&factory));
+		Microsoft::WRL::ComPtr<IDXGIFactory> factory;
+		result = CreateDXGIFactory(__uuidof(factory.Get()), (void**)(&factory));
 
 		if (result == S_OK)
 		{
@@ -62,23 +266,35 @@ void Graphics_DX11::Init(HWND hwnd)
 			SCdesc.Windowed = true;
 
 			//Create the swap chain with the factory we made earlier
-			factory->CreateSwapChain(device, &SCdesc, &swapChain);
+			factory->CreateSwapChain(device.Get(), &SCdesc, &swapChain);
 		}
-		//Release the IDXGIFactory if it exists.
-		SafeRelease(factory);
 
 		if (swapChain != nullptr)
 		{
+			DXGI_SWAP_CHAIN_DESC SCdesc;
+			swapChain->GetDesc(&SCdesc);
+
 			D3D11_RENDER_TARGET_VIEW_DESC RTVdesc;
 			ZeroMemory(&RTVdesc, sizeof(RTVdesc));
 			RTVdesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
 			RTVdesc.ViewDimension = D3D11_RTV_DIMENSION::D3D11_RTV_DIMENSION_TEXTURE2D;
 
-			swapChain->GetBuffer(0, __uuidof(primaryRenderTargetTexture), (void**)(&primaryRenderTargetTexture));
-			device->CreateRenderTargetView(primaryRenderTargetTexture, &RTVdesc, &primaryTextureRTV);
+			D3D11_TEXTURE2D_DESC T2Ddesc;
+			ZeroMemory(&T2Ddesc, sizeof(T2Ddesc));
+			T2Ddesc.Width = SCdesc.BufferDesc.Width;
+			T2Ddesc.Height = SCdesc.BufferDesc.Height;
+			T2Ddesc.MipLevels = 1;
+			T2Ddesc.ArraySize = 1;
+			T2Ddesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+			T2Ddesc.SampleDesc.Count = 1;
+			T2Ddesc.Usage = D3D11_USAGE_DEFAULT;
+			T2Ddesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
 
-			DXGI_SWAP_CHAIN_DESC SCdesc;
-			swapChain->GetDesc(&SCdesc);
+			swapChain->GetBuffer(0, __uuidof(primaryRenderTargetTexture.Get()), (void**)(primaryRenderTargetTexture.ReleaseAndGetAddressOf()));
+			device->CreateRenderTargetView(primaryRenderTargetTexture.Get(), &RTVdesc, primaryTextureRTV.ReleaseAndGetAddressOf());
+
+			device->CreateTexture2D(&T2Ddesc, NULL, primaryDepthBufferTexture.ReleaseAndGetAddressOf());
+			device->CreateDepthStencilView(primaryDepthBufferTexture.Get(), NULL, primaryDepthBuffer.ReleaseAndGetAddressOf());
 
 			fullScreenViewport.Height = SCdesc.BufferDesc.Height;
 			fullScreenViewport.Width = SCdesc.BufferDesc.Width;
