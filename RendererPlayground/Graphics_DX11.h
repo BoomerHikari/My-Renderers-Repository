@@ -19,6 +19,8 @@ class Graphics_DX11
 		Pixel,
 	};
 
+	PipelineState* currentPipeline;
+
 	Microsoft::WRL::ComPtr<ID3D11Device>	device;
 	Microsoft::WRL::ComPtr<ID3D11DeviceContext>	immediateContext;
 	D3D11_VIEWPORT			fullScreenViewport;

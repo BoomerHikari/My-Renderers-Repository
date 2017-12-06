@@ -19,32 +19,172 @@ using Microsoft::WRL::ComPtr;
 class PipelineState
 {
 	//Buffers & Textures
-	ID3D11RenderTargetView*	currentRTV;
-	ID3D11DepthStencilView* currentDSV;
-	ID3D11Buffer*			currentVertexBuffer;
-	ID3D11Buffer*			currentIndexBuffer;
-	//Shaders
-	ID3D11VertexShader*		currentVertexShader;
-	ID3D11HullShader*		currentHullShader;
-	ID3D11DomainShader*		currentDomainShader;
-	ID3D11GeometryShader*	currentGeometryShader;
-	ID3D11PixelShader*		currentPixelShader;
-	//Other
-	D3D11_VIEWPORT*			currentViewport;
-	ID3D11DeviceContext*	immediateContextReference;
+	ID3D11RenderTargetView*		currentRTV;
+	ID3D11DepthStencilView*		currentDSV;
+	ID3D11Buffer*				currentVertexBuffer;
+	ID3D11Buffer*				currentIndexBuffer;
+	std::vector<ID3D11Buffer*>	currentVertexShaderConstantBuffers;
+	std::vector<ID3D11Buffer*>	currentHullShaderConstantBuffers;
+	std::vector<ID3D11Buffer*>	currentDomainShaderConstantBuffers;
+	std::vector<ID3D11Buffer*>	currentGeometryShaderConstantBuffers;
+	std::vector<ID3D11Buffer*>	currentPixelShaderConstantBuffers;
+	//Shaders				 
+	ID3D11VertexShader*			currentVertexShader;
+	ID3D11HullShader*			currentHullShader;
+	ID3D11DomainShader*			currentDomainShader;
+	ID3D11GeometryShader*		currentGeometryShader;
+	ID3D11PixelShader*			currentPixelShader;
+	//Other						
+	ID3D11DeviceContext*		immediateContextReference;
+	D3D11_VIEWPORT*				currentViewport;
+	UINT						currentVertexBufferOffset;
+	//ID3D11DepthStencilState*	currentDepthStencilState;
 
 public:
+
+	PipelineState();
+
+	//Shader Setters
+	void SetVertexShader(ID3D11VertexShader* shader);
+	void SetHullShader(ID3D11HullShader* shader);
+	void SetDomainShader(ID3D11DomainShader* shader);
+	void SetGeometryShader(ID3D11GeometryShader* shader);
+	void SetPixelShader(ID3D11PixelShader* shader);
+
+	//Constant Buffer Setters
+	//buffers is empty when fucntion returns
+	void SetVSConstantBuffers(std::vector<ID3D11Buffer*>& buffers);
+	void SetHSConstantBuffers(std::vector<ID3D11Buffer*>& buffers);
+	void SetDSConstantBuffers(std::vector<ID3D11Buffer*>& buffers);
+	void SetGSConstantBuffers(std::vector<ID3D11Buffer*>& buffers);
+	void SetPSConstantBuffers(std::vector<ID3D11Buffer*>& buffers);
+
+	//Shader Resource Setters
+	//TODO: Store & Set ShaderResourceViews
+
+	//Other Setters
+	void SetVertexIndexBuffers(ID3D11Buffer* vertexBuffer, ID3D11Buffer* indexBuffer, UINT strideLength, UINT offsetDistance = 0);
+	void SetViewport(D3D11_VIEWPORT* viewport);
 	void SetImmediateContext(ID3D11DeviceContext* context);
 	void SetRenderTarget(ID3D11RenderTargetView* rtv, ID3D11DepthStencilView* dsv);
-	void SetVertexShader(ID3D11VertexShader* Vshader);
-	void SetHullShader(ID3D11HullShader* Hshader);
-	void SetDomainShader(ID3D11DomainShader* Dshader);
-	void SetGeometryShader(ID3D11GeometryShader* Gshader);
-	void SetPixelShader(ID3D11PixelShader* Pshader);
+	//void SetDepthStencilState(ID3D11DepthStencilState* DSstate);
 
-}currentPipeline;
+};
 
+//Constructors
+PipelineState::PipelineState()
+{
+	ZeroMemory(this, sizeof(PipelineState));
+}
 
+//Shader Setters
+void PipelineState::SetVertexShader(ID3D11VertexShader* shader)
+{
+	if (shader != currentVertexShader)
+	{
+		currentVertexShader = shader;
+
+		immediateContextReference->VSSetShader(shader, NULL, 0);
+	}
+}
+
+void PipelineState::SetHullShader(ID3D11HullShader* shader)
+{
+	if (currentHullShader != shader)
+	{
+		currentHullShader = shader;
+
+		immediateContextReference->HSSetShader(shader, NULL, 0);
+	}
+}
+
+void PipelineState::SetDomainShader(ID3D11DomainShader* shader)
+{
+	if (currentDomainShader != shader)
+	{
+		currentDomainShader = shader;
+		
+		immediateContextReference->DSSetShader(shader, NULL, 0);
+	}
+}
+
+void PipelineState::SetGeometryShader(ID3D11GeometryShader* shader)
+{
+	if (currentGeometryShader != shader)
+	{
+		currentGeometryShader = shader;
+		immediateContextReference->GSSetShader(shader, NULL, 0);
+	}
+}
+
+void PipelineState::SetPixelShader(ID3D11PixelShader* shader)
+{
+	if (currentPixelShader != shader)
+	{
+		currentPixelShader = shader;
+		
+		immediateContextReference->PSSetShader(shader, NULL, 0);
+	}
+}
+
+//Constant Buffer Setters
+
+void PipelineState::SetVSConstantBuffers(std::vector<ID3D11Buffer*>& buffers) 
+{
+	if (currentVertexShaderConstantBuffers != buffers)
+	{
+		currentVertexShaderConstantBuffers.swap(buffers);
+		buffers.clear();
+
+		immediateContextReference->VSSetConstantBuffers(0, buffers.size(), currentVertexShaderConstantBuffers.data());
+	}
+}
+
+void PipelineState::SetHSConstantBuffers(std::vector<ID3D11Buffer*>& buffers) 
+{
+	if (currentHullShaderConstantBuffers != buffers)
+	{
+		currentHullShaderConstantBuffers.swap(buffers);
+		buffers.clear();
+
+		immediateContextReference->HSSetConstantBuffers(0, buffers.size(), currentHullShaderConstantBuffers.data());
+	}
+}
+
+void PipelineState::SetDSConstantBuffers(std::vector<ID3D11Buffer*>& buffers) 
+{
+	if (currentDomainShaderConstantBuffers != buffers)
+	{
+		currentDomainShaderConstantBuffers.swap(buffers);
+		buffers.clear();
+
+		immediateContextReference->DSSetConstantBuffers(0, buffers.size(), currentDomainShaderConstantBuffers.data());
+	}
+}
+
+void PipelineState::SetGSConstantBuffers(std::vector<ID3D11Buffer*>& buffers) 
+{
+	if (currentGeometryShaderConstantBuffers != buffers)
+	{
+		currentGeometryShaderConstantBuffers.swap(buffers);
+		buffers.clear();
+
+		immediateContextReference->GSSetConstantBuffers(0, buffers.size(), currentGeometryShaderConstantBuffers.data());
+	}
+}
+
+void PipelineState::SetPSConstantBuffers(std::vector<ID3D11Buffer*>& buffers) 
+{
+	if (currentPixelShaderConstantBuffers != buffers)
+	{
+		currentPixelShaderConstantBuffers.swap(buffers);
+		buffers.clear();
+
+		immediateContextReference->PSSetConstantBuffers(0, buffers.size(), currentPixelShaderConstantBuffers.data());
+	}
+}
+
+//Other Setters
 void PipelineState::SetImmediateContext(ID3D11DeviceContext* context)
 {
 	immediateContextReference = context;
@@ -58,6 +198,38 @@ void PipelineState::SetRenderTarget(ID3D11RenderTargetView* rtv, ID3D11DepthSten
 		currentDSV = dsv;
 
 		immediateContextReference->OMSetRenderTargets(1, &rtv, dsv);
+	}
+}
+
+/*void PipelineState::SetDepthStencilState(ID3D11DepthStencilState* DSstate)
+{
+	if (currentDepthStencilState != DSstate)
+	{
+		currentDepthStencilState = DSstate;
+		immediateContextReference->OMGetDepthStencilState(&DSstate, UINT(0));
+	}
+}*/
+
+void PipelineState::SetVertexIndexBuffers(ID3D11Buffer* vertexBuffer, ID3D11Buffer* indexBuffer, UINT vertexSize, UINT offsetDistance)
+{
+	//This will need to change for 
+	if (vertexBuffer != currentVertexBuffer || offsetDistance != currentVertexBufferOffset)
+	{
+		immediateContextReference->IASetVertexBuffers(0, 1, &vertexBuffer, &vertexSize, &offsetDistance);
+	}
+	if (indexBuffer != currentIndexBuffer)
+	{
+		immediateContextReference->IASetIndexBuffer(indexBuffer, DXGI_FORMAT_R32_UINT, 0);
+	}
+}
+
+void PipelineState::SetViewport(D3D11_VIEWPORT* viewport)
+{
+	if (currentViewport != viewport)
+	{
+		currentViewport = viewport;
+
+		immediateContextReference->RSSetViewports(1, viewport);
 	}
 }
 
