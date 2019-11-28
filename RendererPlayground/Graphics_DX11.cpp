@@ -235,17 +235,16 @@ void PipelineState::SetViewport(D3D11_VIEWPORT* viewport)
 
 #pragma endregion
 
-
-
 Graphics_DX11::Graphics_DX11() : device(nullptr), immediateContext(nullptr), primaryRenderTargetTexture(nullptr), primaryTextureRTV(nullptr)
 {
-	ZeroMemory(&fullScreenViewport, sizeof(D3D11_VIEWPORT));
-	ZeroMemory(&currentPipeline, sizeof(currentPipeline));
+	ZeroMemory(&fullSurfaceViewport, sizeof(D3D11_VIEWPORT));
+	currentPipeline = new PipelineState();
 	supportedFeatureLevel = D3D_FEATURE_LEVEL_10_0;
 }
 
 Graphics_DX11::~Graphics_DX11()
 {
+	delete currentPipeline;
 	Release();
 }
 
@@ -271,6 +270,8 @@ unsigned int Graphics_DX11::GetFileBinary(char * file, char ** fileData)
 	
 	return Flen;
 }
+
+#pragma region Shader Loading
 
 unsigned int Graphics_DX11::LoadVertexShader(char * file)
 {
@@ -401,6 +402,76 @@ unsigned int Graphics_DX11::LoadVertexShader(char * file)
 	return VSindex;
 }
 
+unsigned int Graphics_DX11::LoadPixelShader(char * file)
+{
+	unsigned int PSindex = 0;
+	char* bytecode;
+	unsigned int BClen = GetFileBinary(file, &bytecode);
+	
+	ComPtr<ID3D11PixelShader> shader = nullptr;
+
+	if (BClen > 0)
+	{
+		device->CreatePixelShader(bytecode, BClen, nullptr, shader.ReleaseAndGetAddressOf());
+		//need to store shader
+	}
+
+	return PSindex;
+}
+
+unsigned int Graphics_DX11::LoadHullShader(char * file)
+{
+	unsigned int HSindex = 0;
+	char* bytecode;
+	unsigned int BClen = GetFileBinary(file, &bytecode);
+
+	ComPtr<ID3D11HullShader> shader = nullptr;
+
+	if (BClen > 0)
+	{
+		device->CreateHullShader(bytecode, BClen, nullptr, shader.ReleaseAndGetAddressOf());
+		//need to store shader
+	}
+
+	return HSindex;
+}
+
+unsigned int Graphics_DX11::LoadDomainShader(char * file)
+{
+	unsigned int DSindex = 0;
+	char* bytecode;
+	unsigned int BClen = GetFileBinary(file, &bytecode);
+
+	ComPtr<ID3D11DomainShader> shader = nullptr;
+
+	if (BClen > 0)
+	{
+		device->CreateDomainShader(bytecode, BClen, nullptr, shader.ReleaseAndGetAddressOf());
+		//need to store shader
+	}
+
+	return DSindex;
+}
+
+unsigned int Graphics_DX11::LoadGeometryShader(char * file)
+{
+	unsigned int GSindex = 0;
+	char* bytecode;
+	unsigned int BClen = GetFileBinary(file, &bytecode);
+
+	ComPtr<ID3D11GeometryShader> shader = nullptr;
+
+	if (BClen > 0)
+	{
+		device->CreateGeometryShader(bytecode, BClen, nullptr, shader.ReleaseAndGetAddressOf());
+		//need to store shader
+	}
+
+	return GSindex;
+}
+
+#pragma endregion
+
 void Graphics_DX11::Release()
 {
 }
@@ -468,9 +539,35 @@ void Graphics_DX11::Init(HWND hwnd)
 			device->CreateTexture2D(&T2Ddesc, NULL, primaryDepthBufferTexture.ReleaseAndGetAddressOf());
 			device->CreateDepthStencilView(primaryDepthBufferTexture.Get(), NULL, primaryDepthBuffer.ReleaseAndGetAddressOf());
 
-			fullScreenViewport.Height = SCdesc.BufferDesc.Height;
-			fullScreenViewport.Width = SCdesc.BufferDesc.Width;
-			fullScreenViewport.MaxDepth = 1;
+			fullSurfaceViewport.Height = SCdesc.BufferDesc.Height;
+			fullSurfaceViewport.Width = SCdesc.BufferDesc.Width;
+			fullSurfaceViewport.MaxDepth = 1;
 		}
 	}
+}
+
+unsigned int Graphics_DX11::LoadShader(char * file, ShaderType type)
+{
+	unsigned int ret = ~0;
+	switch (type)
+	{
+		case Graphics_DX11::ShaderType::Vertex:
+			ret = LoadVertexShader(file);
+			break;
+		case Graphics_DX11::ShaderType::Hull:
+			ret = LoadHullShader(file);
+			break;
+		case Graphics_DX11::ShaderType::Domain:
+			ret = LoadDomainShader(file);
+			break;
+		case Graphics_DX11::ShaderType::Geography:
+			ret = LoadGeometryShader(file);
+			break;
+		case Graphics_DX11::ShaderType::Pixel:
+			ret = LoadPixelShader(file);
+			break;
+		default:
+			break;
+	}
+	return ret;
 }

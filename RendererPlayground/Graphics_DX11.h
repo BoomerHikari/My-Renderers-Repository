@@ -17,13 +17,14 @@ class Graphics_DX11
 		Domain,
 		Geography,
 		Pixel,
+		Compute
 	};
 
 	PipelineState* currentPipeline;
 
 	Microsoft::WRL::ComPtr<ID3D11Device>	device;
 	Microsoft::WRL::ComPtr<ID3D11DeviceContext>	immediateContext;
-	D3D11_VIEWPORT			fullScreenViewport;
+	D3D11_VIEWPORT			fullSurfaceViewport;
 
 	D3D_FEATURE_LEVEL		supportedFeatureLevel;
 	
@@ -49,7 +50,7 @@ class Graphics_DX11
 	unsigned int LoadPixelShader(char* file);
 	unsigned int LoadHullShader(char* file);
 	unsigned int LoadDomainShader(char* file);
-	unsigned int LoadGeographyShader(char* file);
+	unsigned int LoadGeometryShader(char* file);
 
 public:
 	void Release();
